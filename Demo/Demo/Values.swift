@@ -6,6 +6,7 @@
 //
 
 import NavigationValues
+import NavigationValuesMacro
 import SwiftUI
 
 extension EnvironmentValues {
@@ -13,36 +14,13 @@ extension EnvironmentValues {
 }
 
 extension EnvironmentValues {
-    @Entry var firstName: String = ""
+    @Entry var firstName: String = "initial first name"
+    @Entry var lastName: String = "initial last name"
 }
 
 extension NavigationValues {
-    var firstName: String {
-        get {
-            self[env: \.firstName] ?? "aaa"
-        }
-        set {
-            self[env: \.firstName] = newValue
-        }
-    }
-    
-    var lastName: String {
-        get {
-            self[env: \.lastName] ?? ""
-        }
-        set {
-            self[env: \.lastName] = newValue
-        }
-    }
-    
-    var names: [String] {
-        get {
-            self[env: \.names] ?? []
-        }
-        set {
-            self[env: \.names] = newValue
-        }
-    }
+    @ValueEntry(\.firstName) var firstName: String
+    @ValueEntry(\.lastName) var lastName: String
 }
 
 struct MiddleName: NavigationPreferenceKey {

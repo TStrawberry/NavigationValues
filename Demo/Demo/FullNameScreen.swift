@@ -9,8 +9,8 @@ import SwiftUI
 import NavigationValues
 
 struct FullNameScreen: View {
-    @Environment(\.navigationValues.firstName) var firstname
-    @Environment(\.navigationValues.lastName) var lastname
+    @Environment(\.navigationValues.firstName) var firstName
+    @Environment(\.navigationValues.lastName) var lastName
     
     @Environment(\.navigationValues) var navigationValues: NavigationValues
     
@@ -18,7 +18,7 @@ struct FullNameScreen: View {
     
     var body: some View {
         VStack {
-            Text(firstname + " " + middleName + " " + lastname)
+            Text(firstName + " " + middleName + " " + lastName)
             NavigationLink("To update name", value: Screen.firstnameInputScreen)
             
             TextField("Update middle name for all previous names", text: $middleName)
