@@ -7,6 +7,8 @@ import Observation
 @MainActor
 @Observable
 public class NavigationValues {
+    static let defaultEnvironmentValues = EnvironmentValues()
+    
     var address: UnsafeMutableRawPointer {
         Unmanaged.passUnretained(self).toOpaque()
     }
@@ -14,19 +16,23 @@ public class NavigationValues {
     @ObservationIgnored weak var previous: NavigationValues?
     @ObservationIgnored weak var next: NavigationValues?
     
-    @ObservationIgnored var environments: [Int: Any] = [:]
+    @ObservationIgnored var environments = NavigationEnvironmentValues()
     @ObservationIgnored var preferences: [ObjectIdentifier: Any] = [:]
     @ObservationIgnored var preferenceActions: [ObjectIdentifier: (inout Any) -> Void] = [:]
 
-    public subscript<Member>(env keyPath: WritableKeyPath<NavigationValues, Member>) -> Member? {
+    public subscript<Member>(env keyPath: WritableKeyPath<EnvironmentValues, Member>) -> Member {
         get {
-            self.access(keyPath: keyPath)
-            return (environments[keyPath.hashValue] as? Member) ?? previous?[env: keyPath]
+            let transformedKeyPath = transformKeyPath(keyPath)
+            
+            self.access(keyPath: transformedKeyPath)
+            return environments.contains(keyPath) ? environments[env: keyPath] : (previous?[env: keyPath] ?? Self.defaultEnvironmentValues[keyPath: keyPath])
         }
         set {
-            self.willSet(keyPath: keyPath)
-            self.environments[keyPath.hashValue] = newValue
-            self.didSet(keyPath: keyPath)
+            let transformedKeyPath = transformKeyPath(keyPath)
+            
+            self.willSet(keyPath: transformedKeyPath)
+            self.environments[env: keyPath] = newValue
+            self.didSet(keyPath: transformedKeyPath)
         }
     }
     
@@ -68,6 +74,11 @@ public class NavigationValues {
             guard var value = anyValue as? K.Value else { return }
             action(&value)
         }
+    }
+    
+    func transformKeyPath<Member>(_ keyPath: WritableKeyPath<EnvironmentValues, Member>) -> WritableKeyPath<NavigationValues, Member> {
+        let environmentValues: WritableKeyPath<NavigationValues, EnvironmentValues> = \.environments.environmentValues
+        return environmentValues.appending(path: keyPath)
     }
     
     func updatePreferenceValue<K: NavigationPreferenceKey>( _ key: K.Type, value: K.Value) where K.Value : Equatable {
@@ -162,7 +173,6 @@ private extension EnvironmentValues {
         }
     }
 }
-
 
 public protocol NavigationPreferenceKey {
     associatedtype Value: Equatable
