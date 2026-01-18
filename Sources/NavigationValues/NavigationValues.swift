@@ -36,7 +36,7 @@ public class NavigationValues {
         }
     }
     
-    public func updatePreferences<K: NavigationPreferenceKey>( _ key: K.Type, value: K.Value) where K.Value : Equatable {
+    public func updatePreference<K: NavigationPreferenceKey>( _ key: K.Type, value: K.Value) where K.Value : Equatable {
         previous?.updatePreferenceValue(key, value: value)
     }
     
@@ -142,65 +142,3 @@ struct NavigationValuesViewModifier: ViewModifier {
     }
 }
 
-@MainActor
-public extension EnvironmentValues {
-    private struct NavigationValuesKey: @preconcurrency EnvironmentKey {
-        @MainActor static let defaultValue = NavigationValues()
-    }
-    
-    var navigationValues: NavigationValues {
-        get {
-            self[_NavigationValuesKey.self] ?? NavigationValuesKey.defaultValue
-        }
-        set {
-            self[_NavigationValuesKey.self] = newValue
-        }
-    }
-}
-
-@MainActor
-private extension EnvironmentValues {
-    struct _NavigationValuesKey: @preconcurrency EnvironmentKey {
-        @MainActor static let defaultValue: NavigationValues? = nil
-    }
-    
-    var _navigationValues: NavigationValues? {
-        get {
-            self[_NavigationValuesKey.self]
-        }
-        set {
-            self[_NavigationValuesKey.self] = newValue
-        }
-    }
-}
-
-public protocol NavigationPreferenceKey {
-    associatedtype Value: Equatable
-    
-    static var defaultValue: Self.Value { get }
-}
-
-public extension View {
-    func navigationValues() -> some View {
-        modifier(NavigationValuesViewModifier())
-    }
-    
-    @ViewBuilder
-    func onNavigationPreferenceChange<K>(_ key: K.Type = K.self, perform action: @escaping (inout K.Value) -> Void) -> some View where K : NavigationPreferenceKey, K.Value : Equatable {
-        modifier(NavigationPreferenceViewModifier(key: key, action: action))
-    }
-}
-
-struct NavigationPreferenceViewModifier<K>: ViewModifier where K : NavigationPreferenceKey, K.Value : Equatable {
-    @Environment(\.navigationValues) var navigationValues
-    
-    let key: K.Type
-    let action: (inout K.Value) -> Void
-    
-    func body(content: Content) -> some View {
-        content
-            .onAppear {
-                navigationValues.updatePreferenceAction(key, action: action)
-            }
-    }
-}

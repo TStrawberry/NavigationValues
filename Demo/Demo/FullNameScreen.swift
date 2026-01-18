@@ -25,7 +25,7 @@ struct FullNameScreen: View {
         }
         .frame(maxHeight: .infinity)
         .onChange(of: middleName) { oldValue, newValue in
-            navigationValues.updatePreferences(MiddleName.self, value: newValue)
+            navigationValues.updatePreference(MiddleName.self, value: newValue)
         }
         .onNavigationPreferenceChange(MiddleName.self, perform: { value in
             middleName = value
