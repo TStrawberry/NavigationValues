@@ -1,144 +1,89 @@
-
-
+//
+//  NavigationValues.swift
+//  NavigationValues
+//
+//  Created by TangTao on 2025/12/13.
+//
 
 import SwiftUI
 import Observation
 
-@MainActor
-@Observable
-public class NavigationValues {
-    static let defaultEnvironmentValues = EnvironmentValues()
-    
-    var address: UnsafeMutableRawPointer {
-        Unmanaged.passUnretained(self).toOpaque()
-    }
-    
-    @ObservationIgnored weak var previous: NavigationValues?
-    @ObservationIgnored weak var next: NavigationValues?
-    
-    @ObservationIgnored var environments = NavigationEnvironmentValues()
-    @ObservationIgnored var preferences: [ObjectIdentifier: Any] = [:]
-    @ObservationIgnored var preferenceActions: [ObjectIdentifier: (inout Any) -> Void] = [:]
+extension EnvironmentValues {
+    @Entry var shouldLinkScreens: Bool = false
+}
 
-    public subscript<Member>(env keyPath: WritableKeyPath<EnvironmentValues, Member>) -> Member {
-        get {
-            let transformedKeyPath = transformKeyPath(keyPath)
-            
-            self.access(keyPath: transformedKeyPath)
-            return environments.contains(keyPath) ? environments[env: keyPath] : (previous?[env: keyPath] ?? Self.defaultEnvironmentValues[keyPath: keyPath])
-        }
-        set {
-            let transformedKeyPath = transformKeyPath(keyPath)
-            
-            self.willSet(keyPath: transformedKeyPath)
-            self.environments[env: keyPath] = newValue
-            self.didSet(keyPath: transformedKeyPath)
-        }
-    }
-    
-    public func updatePreference<K: NavigationPreferenceKey>( _ key: K.Type, value: K.Value) where K.Value : Equatable {
-        previous?.updatePreferenceValue(key, value: value)
-    }
-    
-    func willSet<Member>(keyPath: WritableKeyPath<NavigationValues, Member>) {
-        var values: NavigationValues? = self
-        
-        while let vls = values {
-            self._$observationRegistrar.willSet(vls, keyPath: keyPath)
-            values = vls.next
-        }
-    }
-    
-    func didSet<Member>(keyPath: WritableKeyPath<NavigationValues, Member>) {
-        var values: NavigationValues? = self
-        
-        while let vls = values {
-            self._$observationRegistrar.didSet(vls, keyPath: keyPath)
-            values = vls.next
-        }
-    }
-    
-    func access<Member>(keyPath: KeyPath<NavigationValues, Member>) {
-        var values: NavigationValues? = self
-        while let vls = values {
-            self._$observationRegistrar.access(vls, keyPath: keyPath)
-            values = vls.previous
-        }
-    }
-    
-    func updatePreferenceAction<K: NavigationPreferenceKey>(
-        _ key: K.Type,
-        action: @escaping (inout K.Value) -> Void
-    ) where K.Value : Equatable {
-        preferenceActions[ObjectIdentifier(K.self)] = { anyValue in
-            guard var value = anyValue as? K.Value else { return }
-            action(&value)
-        }
-    }
-    
-    func transformKeyPath<Member>(_ keyPath: WritableKeyPath<EnvironmentValues, Member>) -> WritableKeyPath<NavigationValues, Member> {
-        let environmentValues: WritableKeyPath<NavigationValues, EnvironmentValues> = \.environments.environmentValues
-        return environmentValues.appending(path: keyPath)
-    }
-    
-    func updatePreferenceValue<K: NavigationPreferenceKey>( _ key: K.Type, value: K.Value) where K.Value : Equatable {
-        let id = ObjectIdentifier(key)
-        var shouldCallAction: Bool {
-            if let existingValue = preferences[id] as? K.Value {
-                return existingValue != value
-            } else {
-                return true
+public struct LinkedScreenViewModifier: ViewModifier {
+    public func body(content: Content) -> some View {
+        content
+            .environment(\.shouldLinkScreens, true)
+            .transformPreference(ScreenContext.Preference.self) { values in
+                for (prev, next) in zip(values, values.dropFirst()) {
+                    prev.next = next
+                    next.previous = prev
+                }
             }
-        }
-        
-        var mutipleValue = value as Any
-        if shouldCallAction {
-            preferenceActions[id]?(&mutipleValue)
-        }
-        previous?.updatePreferenceValue(key, value: mutipleValue as! K.Value)
+            .onPreferenceChange(ScreenContext.Preference.self) { _ in }
     }
 }
 
-extension NavigationValues: @preconcurrency Equatable {
-    public static func == (lhs: NavigationValues, rhs: NavigationValues) -> Bool {
-        return lhs.address == rhs.address
-    }
-}
-
-struct NavigationValuesPreferenceKey: PreferenceKey {
-    static let defaultValue: [NavigationValues] = []
+public struct NavigationManagerViewModifier: ViewModifier {
+    class NavigationStack: ScreenContext { }
     
-    static func reduce(value: inout [NavigationValues], nextValue: () -> [NavigationValues]) {
-        let values = nextValue()
-        if let last = value.last {
-            link(values, to: last)
-        }
-        value += nextValue()
-    }
+    @Environment(\.screenContext) var screenContext
     
-    static func link(_ navigationValues: [NavigationValues], to previous: NavigationValues) {
-        for (pre, next) in zip([previous] + navigationValues, navigationValues) {
-            MainActor.assumeIsolated {
-                (pre.next, next.previous) = (next, pre)
-            }
-        }
-    }
-}
-
-struct NavigationValuesViewModifier: ViewModifier {
-    @Environment(NavigationValuesEnvironment.self) var navigationValuesEnvironment
-    @State var navigationValues = NavigationValues()
+    @State var navigationManager = NavigationStack()
     
-    func body(content: Content) -> some View {
-        let _ = {
-            if let last = navigationValuesEnvironment.navigationValues.last, last != navigationValues {
-                navigationValues.previous = navigationValuesEnvironment.navigationValues.last
-            }
-        }()
+    public func body(content: Content) -> some View {
+        let _ = navigationManager.parent = screenContext
         
         content
-            .environment(\.navigationValues, navigationValues)
-            .preference(key: NavigationValuesPreferenceKey.self, value: [navigationValues])
+            .screenContext(NavigationStack.self)
+            .onPreferenceChange(ScreenContext.Preference.self) { _ in }
     }
 }
 
+
+extension View {
+    @ViewBuilder public func linkingScreens() -> some View {
+        modifier(LinkedScreenViewModifier())
+    }
+    
+    @ViewBuilder public func navigationManager() -> some View {
+        linkingScreens()
+            .modifier(NavigationManagerViewModifier())
+    }
+}
+
+
+struct ScreenContextViewModifier<T: ScreenContext>: ViewModifier {
+    class OnRelease {
+        var release: () -> Void = { }
+        deinit { release() }
+    }
+    
+    @Environment(\.screenContext) var parent
+    @Environment(\.shouldLinkScreens) var shouldLinkScreens
+    
+    @State var screenContext: T
+    @State var onRelease: OnRelease = OnRelease()
+    
+    init(screenContext: T = T()) {
+        self._screenContext = State(initialValue: screenContext)
+    }
+    
+    func body(content: Content) -> some View {
+        content
+            .transformEnvironment(\.screenContext) { screenContext in
+                onRelease.release = screenContext.cleanup
+                guard shouldLinkScreens, screenContext.previous == nil, !parent.isParent(of: screenContext) else { return }
+                screenContext.previous = parent.children.last?.top()
+            }
+            .environment(\.screenContext, screenContext)
+            .transformPreference(ScreenContext.Preference.self, { values in
+                screenContext.children = values
+                screenContext.parent = parent
+                values = [screenContext]
+            })
+            .onPreferenceChange(ScreenContext.Preference.self) { _ in }
+    }
+}

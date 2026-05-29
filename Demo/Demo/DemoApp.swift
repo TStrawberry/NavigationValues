@@ -8,37 +8,40 @@
 import SwiftUI
 import NavigationValues
 
-enum Screen: Hashable {
-    case firstnameInputScreen
-    case lastnameInputScreen
-    case fullNameScreen
+@Observable
+class NavigationPathManager {
+    static let shared = NavigationPathManager()
+    
+    var path = NavigationPath()
 }
+
+struct PPP: SwiftUI.PreferenceKey {
+    static var defaultValue: [Int] = []
+    
+    static func reduce(value: inout [Int], nextValue: () -> [Int]) {
+        print("\(value)")
+        print("\(nextValue())")
+        value += nextValue()
+    }
+    
+}
+
 
 @main
 struct DemoApp: App {
+    @State var manager = NavigationPathManager.shared
+    
     var body: some Scene {
         WindowGroup {
-            NavigationStack {
-                FirstNameInputScreen()
-                    .navigationValues()
-                    .navigationDestination(for: Screen.self) { screen in
-                        destination(screen)
-                            .navigationValues()
+            NavigationStack(path: $manager.path) {
+                Screen()
+                    .screenContext()
+                    .navigationDestination(for: String.self) { screen in
+                        Screen()
+                            .screenContext()
                     }
             }
-            .navigationValuesEnvironment()
-        }
-    }
-    
-    @ViewBuilder
-    func destination(_ screen: Screen) -> some View {
-        switch screen {
-        case .firstnameInputScreen:
-            FirstNameInputScreen()
-        case .lastnameInputScreen:
-            LastNameInputScreen()
-        case .fullNameScreen:
-            FullNameScreen()
+            .navigationManager()
         }
     }
 }

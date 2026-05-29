@@ -1,9 +1,9 @@
 # NavigationValues
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Swift-6.0+-orange?style=flat-square&logo=swift" alt="Swift 5.9+"/>
-  <img src="https://img.shields.io/badge/iOS-16.0+-007AFF?style=flat-square&logo=apple" alt="iOS 16.0+"/>
-  <img src="https://img.shields.io/badge/Platforms-iOS%20%7C%20macOS%20%7C%20tvOS%20%7C%20watchOS-lightgrey?style=flat-square" alt="Platforms"/>
+  <img src="https://img.shields.io/badge/Swift-6.0+-orange?style=flat-square&logo=swift" alt="Swift 6.0+"/>
+  <img src="https://img.shields.io/badge/iOS-18.0+-007AFF?style=flat-square&logo=apple" alt="iOS 18.0+"/>
+  <img src="https://img.shields.io/badge/Platforms-iOS%20%7C%20macOS-lightgrey?style=flat-square" alt="Platforms"/>
   <img src="https://img.shields.io/github/license/yourusername/NavigationValues?style=flat-square" alt="MIT License"/>
 </p>
 
@@ -36,17 +36,17 @@ NavigationValues reinterprets the classic Environment (down) + Preference (up) p
 
 ## Usage
 
-### Declare the navigationValuesEnvironment() on NavigationStack
+- Apply the navigationValues() on NavigationStack
 
 ```swift
 NavigationStack {
     ...
 }
-.navigationValuesEnvironment()
+.navigationValues()
 ```
 
 
-### Declare the navigationValues() on the view which is supposed to receive any values from previous views on the NavigationStack 
+- Apply the navigationValues() on the view which is supposed to receive any value sent from previous views on the NavigationStack 
 
 ```swift
 NavigationStack {
@@ -57,20 +57,16 @@ NavigationStack {
                 .navigationValues()
         }
 }
-.navigationValuesEnvironment()
+.navigationValues()
 
 ```
 
-### Define the fields that is passed
+- Define the fields that are passed
 
 ```
 /// Pass forward
-extension EnvironmentValues {
-    @Entry var firstName: String = "initial first name"
-}
-
 extension NavigationValues {
-    @ValueEntry(\.firstName) var firstName: String
+    @ValueEntry var firstName: String = "initial first name"
 }
 
 /// Pass backward
@@ -81,7 +77,7 @@ struct MiddleName: NavigationPreferenceKey {
 
 ```
 
-### Send values forward and receive values in next screen
+- Send values forward and receive values in next screen
 
 ```swift
 struct FirstNameInputScreen: View {
@@ -110,7 +106,7 @@ struct NextScreen: View {
 
 ```
 
-### Send values backward and receive values in previous screen
+- Send values backward and receive values in previous screen
 
 ```swift
 
@@ -120,9 +116,9 @@ struct PreviousScreen: View {
     var body: some View {
         @Bindable var navigationValues = navigationValues
         
-        Text(middleName)
-            .onNavigationPreferenceChange(MiddleName.self, perform: { value in
-                middleName = value
+        Text(middleName)        
+            .onNavigationPreferenceChange(MiddleName.self, perform: { value, backward in
+                backward(value)
             })
     }
 }
@@ -142,3 +138,6 @@ struct MiddleNameInputScreen: View {
 
 ```
 
+
+## License
+NavigationValues is under MIT license.

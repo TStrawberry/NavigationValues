@@ -7,24 +7,23 @@
 
 import SwiftUI
 
-struct NavigationEnvironmentValues {
+struct NavigationEnvironmentValues<T> {
     
     typealias KeyPathHash = Int
     
-    var environmentValues: EnvironmentValues = EnvironmentValues()
-    var keyPathes: Set<KeyPathHash> = []
+    var dict: [KeyPathHash: Any] = [:]
     
-    func contains<Member>(_ keyPath: WritableKeyPath<EnvironmentValues, Member>) -> Bool {
-        keyPathes.contains(keyPath.hashValue)
+    func contains<Member>(_ keyPath: KeyPath<T, Member>) -> Bool {
+        dict[keyPath.hashValue] != nil
     }
      
-    subscript<Member>(env keyPath: WritableKeyPath<EnvironmentValues, Member>) -> Member {
+    subscript<Member>(env keyPath: KeyPath<T, Member>) -> Member? {
         get {
-            return environmentValues[keyPath: keyPath]
+            guard contains(keyPath) else { return nil }
+            return dict[keyPath.hashValue] as? Member
         }
         set {
-            keyPathes.insert(keyPath.hashValue)
-            environmentValues[keyPath: keyPath] = newValue
+            dict[keyPath.hashValue] = newValue
         }
     }
 }

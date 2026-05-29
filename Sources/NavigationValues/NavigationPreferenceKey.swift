@@ -7,33 +7,42 @@
 
 import SwiftUI
 
-public protocol NavigationPreferenceKey {
+public protocol PreferenceKey {
+    typealias Backward = (Value) -> Void
+    
     associatedtype Value: Equatable
     
     static var defaultValue: Self.Value { get }
 }
 
 public extension View {
-    func navigationValues() -> some View {
-        modifier(NavigationValuesViewModifier())
+    func screenContext<T: ScreenContext>(_ type: T.Type = ScreenContext.self) -> some View {
+        modifier(ScreenContextViewModifier<T>())
+    }
+    
+    func screenContext<T: ScreenContext>(_ context: T) -> some View {
+        modifier(ScreenContextViewModifier<T>(screenContext: context))
     }
     
     @ViewBuilder
-    func onNavigationPreferenceChange<K>(_ key: K.Type = K.self, perform action: @escaping (inout K.Value) -> Void) -> some View where K : NavigationPreferenceKey, K.Value : Equatable {        
-        modifier(NavigationPreferenceViewModifier(key: key, action: action))
+    func onScreenPreferenceChange<K>(
+        _ key: K.Type = K.self,
+        perform action: @escaping (K.Value, K.Backward) -> Void
+    ) -> some View where K : NavigationValues.PreferenceKey, K.Value : Equatable {
+        modifier(ScreenPreferenceViewModifier(key: key, action: action))
     }
 }
 
-struct NavigationPreferenceViewModifier<K>: ViewModifier where K : NavigationPreferenceKey, K.Value : Equatable {
-    @Environment(\.navigationValues) var navigationValues
+struct ScreenPreferenceViewModifier<K>: ViewModifier where K : NavigationValues.PreferenceKey, K.Value : Equatable {
+    @Environment(\.screenContext) var screenContext
     
     let key: K.Type
-    let action: (inout K.Value) -> Void
+    let action: (K.Value, K.Backward) -> Void
     
     func body(content: Content) -> some View {
         content
-            .task(id: navigationValues.address) {
-                navigationValues.updatePreferenceAction(key, action: action)
+            .task(id: screenContext) {
+                screenContext.updatePreferenceAction(key, action: action)
             }
     }
 }
