@@ -75,13 +75,13 @@ struct ScreenContextViewModifier<T: ScreenContext>: ViewModifier {
         content
             .transformEnvironment(\.screenContext) { screenContext in
                 onRelease.release = screenContext.cleanup
+                screenContext.parent = parent
                 guard shouldLinkScreens, screenContext.previous == nil, !parent.isParent(of: screenContext) else { return }
                 screenContext.previous = parent.children.last?.top()
             }
             .environment(\.screenContext, screenContext)
             .transformPreference(ScreenContext.Preference.self, { values in
                 screenContext.children = values
-                screenContext.parent = parent
                 values = [screenContext]
             })
             .onPreferenceChange(ScreenContext.Preference.self) { _ in }

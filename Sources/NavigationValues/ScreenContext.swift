@@ -11,7 +11,7 @@ import SwiftUI
 @MainActor
 @Observable
 open class ScreenContext {
-    @ObservationIgnored public weak var parent: ScreenContext?
+    @ObservationIgnored public internal(set) weak var parent: ScreenContext?
     @ObservationIgnored public internal(set) var children: [ScreenContext] = []
     @ObservationIgnored public weak var previous: ScreenContext?
     @ObservationIgnored public weak var next: ScreenContext?
