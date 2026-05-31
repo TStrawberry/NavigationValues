@@ -103,67 +103,6 @@ public struct ValueEntryMacro: AccessorMacro & PeerMacro {
     }
 }
 
-
-public struct ScreenContextMacro: AccessorMacro & PeerMacro {
-
-    public static func expansion(
-        of node: AttributeSyntax,
-        providingAccessorsOf declaration: some DeclSyntaxProtocol,
-        in context: some MacroExpansionContext
-    ) throws -> [AccessorDeclSyntax] {
-        
-        guard let varDecl = declaration.as(VariableDeclSyntax.self),
-              varDecl.bindingSpecifier.text == "var",
-              let binding = varDecl.bindings.first,
-              let ident = binding.pattern.as(IdentifierPatternSyntax.self)?.identifier,
-              let initializer = binding.initializer?.value
-        else {
-            fatalError()
-        }
-        
-        let name = ident.trimmedDescription
-        let defaultExpr = initializer.trimmedDescription
-        
-        return [
-            """
-                get {
-                    _\(raw: name)
-                }
-                set {
-                    
-                }
-            """
-        ]
-    }
-
-    public static func expansion(
-        of node: AttributeSyntax,
-        providingPeersOf declaration: some DeclSyntaxProtocol,
-        in context: some MacroExpansionContext
-    ) throws -> [DeclSyntax] {
-        
-        guard let varDecl = declaration.as(VariableDeclSyntax.self),
-              varDecl.bindingSpecifier.text == "var",
-              let binding = varDecl.bindings.first,
-              let ident = binding.pattern.as(IdentifierPatternSyntax.self)?.identifier,
-              binding.initializer?.value != nil
-        else {
-            return []
-        }
-        
-        let name       = ident.trimmedDescription
-        let defaultVal = binding.initializer!.value.trimmedDescription
-        
-        return [DeclSyntax(
-            stringLiteral:
-                """
-                @SwiftUI.Environment(\\.screenContext.) var _
-                """
-        )]
-    }
-}
-
-
 @main
 struct NavigationValuesMacroPlugin: CompilerPlugin {
     let providingMacros: [Macro.Type] = [
