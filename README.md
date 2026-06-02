@@ -39,7 +39,7 @@ Add NavigationValues as a Swift Package dependency in Xcode or in your `Package.
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/tstrawberry/NavigationValues.git", from: "1.0.0"),
+    .package(url: "https://github.com/tstrawberry/NavigationValues.git", from: "1.0.2"),
 ]
 ```
 
@@ -58,7 +58,7 @@ NavigationStack(path: $path) {
                 .screenContext()
         }
 }
-.navigationManager()
+.navigationContext()
 ```
 
 **2. Define forward-passing values**
@@ -69,7 +69,7 @@ extension ScreenContext {
 }
 ```
 
-Use `@ValueEntry(.observationIgnored)` when a value should be readable and writable but should not trigger observation updates — useful for caches, timers, or other internal state.
+Use `@ValueEntry(.observationIgnored)` when a value should be readable and writable but should not trigger observation updates.
 
 
 **3. Define a backward-passing preference**

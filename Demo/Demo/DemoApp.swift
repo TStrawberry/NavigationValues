@@ -41,7 +41,7 @@ struct DemoApp: App {
                             .screenContext()
                     }
             }
-            .navigationManager()
+            .navigationContext()
         }
     }
 }
