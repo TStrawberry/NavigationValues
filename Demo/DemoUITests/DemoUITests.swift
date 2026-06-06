@@ -2,42 +2,119 @@
 //  DemoUITests.swift
 //  DemoUITests
 //
-//  Created by TangTao on 2025/9/12.
+//  UI tests that exercise NavigationValues in the Demo app.
 //
 
 import XCTest
 
 final class DemoUITests: XCTestCase {
-
+    private var app: XCUIApplication!
+    
     override func setUpWithError() throws {
-        // Put setup code here. This method is called before the invocation of each test method in the class.
-
-        // In UI tests it is usually best to stop immediately when a failure occurs.
         continueAfterFailure = false
-
-        // In UI tests it’s important to set the initial state - such as interface orientation - required for your tests before they run. The setUp method is a good place to do this.
+        app = XCUIApplication()
+        app.launchDemo()
     }
-
-    override func tearDownWithError() throws {
-        // Put teardown code here. This method is called after the invocation of each test method in the class.
-    }
-
+    
+    // MARK: - Forward values (@ValueEntry)
+    
     @MainActor
-    func testExample() throws {
-        // UI tests must launch the application that they test.
-        let app = XCUIApplication()
-        app.launch()
-
-        // Use XCTAssert and related functions to verify your tests produce the correct results.
+    func testForwardValueDefaultOnRootScreen() throws {
+        XCTAssertEqual(app.forwardTextField.stringValue, "initial value")
     }
-
+    
     @MainActor
-    func testLaunchPerformance() throws {
-        if #available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 7.0, *) {
-            // This measures how long it takes to launch your application.
-            measure(metrics: [XCTApplicationLaunchMetric()]) {
-                XCUIApplication().launch()
-            }
-        }
+    func testForwardValueIsInheritedByPushedScreen() throws {
+        app.forwardTextField.clearAndEnterText("shared-forward")
+        app.pushScreen()
+        
+        XCTAssertEqual(app.forwardTextField.stringValue, "shared-forward")
+    }
+    
+    @MainActor
+    func testForwardValueSetOnChildDoesNotOverwriteRoot() throws {
+        app.forwardTextField.clearAndEnterText("root-forward")
+        app.pushScreen()
+        app.forwardTextField.clearAndEnterText("child-forward")
+        app.popScreen()
+        
+        XCTAssertEqual(app.forwardTextField.stringValue, "root-forward")
+    }
+    
+    @MainActor
+    func testForwardValueUpdatesObservablyOnRootScreen() throws {
+        app.startTimerButton.tap()
+        
+        let predicate = NSPredicate(format: "value != %@", "initial value")
+        let expectation = expectation(for: predicate, evaluatedWith: app.forwardTextField)
+        wait(for: [expectation], timeout: 3)
+    }
+    
+    // MARK: - Backward preferences (PreferenceKey)
+    
+    @MainActor
+    func testBackwardPreferencePropagatesToParentScreen() throws {
+        app.pushScreen()
+        app.backwardTextField.clearAndEnterText("from-child")
+        app.popScreen()
+        
+        XCTAssertEqual(app.backwardTextField.stringValue, "from-child")
+    }
+    
+    @MainActor
+    func testBackwardPreferenceDoesNotPropagateWhenChildBlocksIt() throws {
+        app.pushScreen()
+        app.preventBackwardToggle.setSwitch(on: true)
+        app.backwardTextField.clearAndEnterText("blocked")
+        XCTAssertEqual(app.backwardTextField.stringValue, "blocked")
+        app.popScreen()
+        
+        XCTAssertTrue(app.backwardTextField.isShowingBackwardPlaceholder)
+    }
+    
+    @MainActor
+    func testBackwardPreferenceStillPropagatesWhenChildAllowsIt() throws {
+        app.pushScreen()
+        app.preventBackwardToggle.setSwitch(on: false)
+        app.backwardTextField.clearAndEnterText("allowed")
+        app.popScreen()
+        
+        XCTAssertEqual(app.backwardTextField.stringValue, "allowed")
+    }
+    
+    // MARK: - Navigation stack integration
+    
+    @MainActor
+    func testMultiplePushLevelsPreserveForwardValue() throws {
+        app.forwardTextField.clearAndEnterText("deep-forward")
+        app.pushScreen()
+        XCTAssertEqual(app.forwardTextField.stringValue, "deep-forward")
+        
+        app.pushScreen()
+        XCTAssertEqual(app.forwardTextField.stringValue, "deep-forward")
+    }
+    
+    @MainActor
+    func testBackwardPreferenceFromDeepScreenReachesRoot() throws {
+        app.pushScreen()
+        app.pushScreen()
+        app.backwardTextField.clearAndEnterText("from-deepest")
+        app.popScreen()
+        app.popScreen()
+        
+        XCTAssertEqual(app.backwardTextField.stringValue, "from-deepest")
+    }
+    
+    @MainActor
+    func testBackwardPreferenceBlockedByIntermediateScreen() throws {
+        app.pushScreen()
+        app.preventBackwardToggle.setSwitch(on: true)
+        app.pushScreen()
+        app.backwardTextField.clearAndEnterText("from-deepest")
+        app.popScreen()
+        XCTAssertEqual(app.backwardTextField.stringValue, "from-deepest")
+        app.popScreen()
+        
+        XCTAssertTrue(app.backwardTextField.isShowingBackwardPlaceholder)
     }
 }

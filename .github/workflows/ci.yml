@@ -49,5 +49,36 @@ jobs:
       - name: Build
         run: swift build -v
 
-      - name: Test
+      - name: Unit Tests
         run: swift test -v
+
+      - name: List available simulators
+        run: xcrun simctl list devices available
+
+      - name: Select iOS Simulator
+        id: simulator
+        run: |
+          DEVICE_ID=$(xcrun simctl list devices available -j \
+            | python3 -c "
+          import json, sys
+          devices = json.load(sys.stdin)['devices']
+          for runtime in sorted(devices.keys(), reverse=True):
+              if 'iOS' not in runtime:
+                  continue
+              for device in devices[runtime]:
+                  if device.get('isAvailable') and 'iPhone' in device['name']:
+                      print(device['udid'])
+                      raise SystemExit(0)
+          raise SystemExit('No available iPhone simulator found')
+          ")
+          echo "device_id=$DEVICE_ID" >> "$GITHUB_OUTPUT"
+          echo "Selected simulator UDID: $DEVICE_ID"
+
+      - name: UI Tests
+        run: |
+          xcodebuild test \
+            -project Demo/Demo.xcodeproj \
+            -scheme DemoUITests \
+            -destination "platform=iOS Simulator,id=${{ steps.simulator.outputs.device_id }}" \
+            -only-testing:DemoUITests \
+            -enableCodeCoverage YES

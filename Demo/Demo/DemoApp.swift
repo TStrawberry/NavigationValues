@@ -36,7 +36,7 @@ struct DemoApp: App {
             NavigationStack(path: $manager.path) {
                 Screen()
                     .screenContext()
-                    .navigationDestination(for: String.self) { screen in
+                    .navigationDestination(for: String.self) { _ in
                         Screen()
                             .screenContext()
                     }

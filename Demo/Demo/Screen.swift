@@ -22,6 +22,7 @@ struct Screen: View {
             HStack {
                 TextField("Pass Forward", text: $screenContext.fowardValue)
                     .textFieldStyle(.roundedBorder)
+                    .accessibilityIdentifier("forwardTextField")
                 
                 Button("Start Timer") {
                     var value = 0
@@ -30,17 +31,22 @@ struct Screen: View {
                         value += 1
                     })
                 }
+                .accessibilityIdentifier("startTimerButton")
             }
             
             TextField("Pass Backward", text: $backwardValue)
                 .textFieldStyle(.roundedBorder)
+                .accessibilityIdentifier("backwardTextField")
             
             Toggle("Prevent Passing Backward", isOn: $isPreventingPassingBack)
+                .toggleStyle(.switch)
+                .accessibilityIdentifier("preventBackwardToggle")
             
             Button("Push") {
                 NavigationPathManager.shared.path.append("")
             }
             .buttonStyle(.bordered)
+            .accessibilityIdentifier("pushButton")
         }
         .padding()
         .onChange(of: backwardValue, initial: false) { oldValue, newValue in
