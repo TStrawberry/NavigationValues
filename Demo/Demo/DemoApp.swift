@@ -2,30 +2,21 @@
 //  DemoApp.swift
 //  Demo
 //
-//  Created by TangTao on 2025/9/12.
+//  Entry point: Configures the NavigationStack and injects the modifiers required by NavigationValues.
+//
+//  .navigationContext() — Attached to NavigationStack, initializes the navigation environment.
+//  .screenContext()    — Attached to each Screen, creates an independent ScreenContext for that screen.
 //
 
 import SwiftUI
 import NavigationValues
 
+/// Manages the global navigation path (shared by all Screens).
 @Observable
 class NavigationPathManager {
     static let shared = NavigationPathManager()
-    
     var path = NavigationPath()
 }
-
-struct PPP: SwiftUI.PreferenceKey {
-    static var defaultValue: [Int] = []
-    
-    static func reduce(value: inout [Int], nextValue: () -> [Int]) {
-        print("\(value)")
-        print("\(nextValue())")
-        value += nextValue()
-    }
-    
-}
-
 
 @main
 struct DemoApp: App {
@@ -45,4 +36,3 @@ struct DemoApp: App {
         }
     }
 }
-
