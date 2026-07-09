@@ -39,10 +39,10 @@ public struct ValueEntryMacro: AccessorMacro & PeerMacro {
             return [
                 """
                     get {
-                        self.environmentValue(\\.\(raw: name)) ?? Self.__Value_\(raw: name).defaultValue
+                        self.environmentValue(keyPathAppending(\\NeverType.\(raw: name))) ?? Self.__Value_\(raw: name).defaultValue
                     }
                     set {
-                        self.setEnvironment(\\.\(raw: name), to: newValue)
+                        self.setEnvironment(keyPathAppending(\\NeverType.\(raw: name)), to: newValue)
                     }
                 """
             ]
@@ -51,10 +51,10 @@ public struct ValueEntryMacro: AccessorMacro & PeerMacro {
         return [
             """
                 get {
-                    self[env: \\.\(raw: name)] ?? Self.__Value_\(raw: name).defaultValue
+                    return self[env: keyPathAppending(\\NeverType.\(raw: name))] ?? Self.__Value_\(raw: name).defaultValue
                 }
                 set {
-                    self[env: \\.\(raw: name)] = newValue
+                    self[env: keyPathAppending(\\NeverType.\(raw: name))] = newValue
                 }
             """
         ]

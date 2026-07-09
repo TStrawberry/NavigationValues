@@ -8,6 +8,14 @@
 import Observation
 import SwiftUI
 
+@dynamicMemberLookup
+public enum NeverType {
+    public subscript<T>(dynamicMember dynamicMember: String) -> T {
+        set { fatalError() }
+        get { fatalError() }
+    }
+}
+
 @MainActor
 @Observable
 open class ScreenContext {
@@ -20,8 +28,19 @@ open class ScreenContext {
     @ObservationIgnored var preferences: [ObjectIdentifier: Any] = [:]
     @ObservationIgnored var preferenceActions: [ObjectIdentifier: (Any, (Any) -> Void) -> Void] = [:]
     
+    private var never: NeverType {
+        set { }
+        get { fatalError("Should never be called directly") }
+    }
+    
     public required init() {
         
+    }
+    
+    /// For internal usage,  should never be called directly
+    public final func keyPathAppending<T>(_ keyPath: WritableKeyPath<NeverType, T>) -> WritableKeyPath<ScreenContext, T> {
+        let toNever = \ScreenContext.never
+        return toNever.appending(path: keyPath)
     }
     
     public subscript<Member>(env keyPath: WritableKeyPath<ScreenContext, Member>) -> Member? {
