@@ -206,6 +206,7 @@ struct Screen: View {
                     }
                     .buttonStyle(.bordered)
                     .tint(.teal)
+                    .accessibilityIdentifier("counterDecrementButton")
                     
                     Text("\(screenContext.counter)")
                         .font(.title2.weight(.semibold))
@@ -218,6 +219,7 @@ struct Screen: View {
                             RoundedRectangle(cornerRadius: 8)
                                 .fill(Color(.systemGray6))
                         )
+                        .accessibilityIdentifier("counterValueLabel")
                     
                     Button {
                         screenContext.counter += 1
@@ -227,6 +229,7 @@ struct Screen: View {
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(.teal)
+                    .accessibilityIdentifier("counterIncrementButton")
                     
                     Spacer()
                     
@@ -238,6 +241,7 @@ struct Screen: View {
                     }
                     .buttonStyle(.bordered)
                     .tint(.secondary)
+                    .accessibilityIdentifier("counterResetButton")
                 }
             }
             

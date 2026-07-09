@@ -2,35 +2,63 @@
 //  DemoUITestHelpers.swift
 //  DemoUITests
 //
+//
 
 import XCTest
 
 extension XCUIApplication {
+    
+    // MARK: - Forward Value
+    
     var forwardTextField: XCUIElement {
         textFields["forwardTextField"]
     }
     
-    var backwardTextField: XCUIElement {
-        textFields["backwardTextField"]
+    var startTimerButton: XCUIElement {
+        buttons["startTimerButton"]
     }
     
-    var pushButton: XCUIElement {
-        buttons["pushButton"]
+    // MARK: - Counter (Int Forward Value)
+    
+    var counterDecrementButton: XCUIElement {
+        buttons["counterDecrementButton"]
+    }
+    
+    var counterIncrementButton: XCUIElement {
+        buttons["counterIncrementButton"]
+    }
+    
+    var counterResetButton: XCUIElement {
+        buttons["counterResetButton"]
+    }
+    
+    var counterValueLabel: XCUIElement {
+        staticTexts["counterValueLabel"]
+    }
+    
+    // MARK: - Backward Value
+    
+    var backwardTextField: XCUIElement {
+        textFields["backwardTextField"]
     }
     
     var preventBackwardToggle: XCUIElement {
         if switches["preventBackwardToggle"].exists {
             return switches["preventBackwardToggle"]
         }
-        if switches["Prevent Passing Backward"].exists {
-            return switches["Prevent Passing Backward"]
+        if switches["Allow passing backward to previous screens"].exists {
+            return switches["Allow passing backward to previous screens"]
         }
         return switches.firstMatch
     }
     
-    var startTimerButton: XCUIElement {
-        buttons["startTimerButton"]
+    // MARK: - Navigation
+    
+    var pushButton: XCUIElement {
+        buttons["pushButton"]
     }
+    
+    // MARK: - Launch & Navigation Helpers
     
     func launchDemo() {
         launch()
@@ -42,21 +70,25 @@ extension XCUIApplication {
         XCTAssertTrue(forwardTextField.waitForExistence(timeout: 5))
     }
     
+    /// Pops the current screen using the navigation bar back button.
     func popScreen() {
-        forwardTextField.tap()
-        XCTAssertTrue(navigationBars.buttons.firstMatch.waitForExistence(timeout: 5))
-        navigationBars.buttons.firstMatch.tap()
+        let backButton = navigationBars.buttons.firstMatch
+        XCTAssertTrue(backButton.waitForExistence(timeout: 5))
+        backButton.tap()
         XCTAssertTrue(forwardTextField.waitForExistence(timeout: 5))
     }
 }
 
 extension XCUIElement {
+    
     var stringValue: String {
         (value as? String) ?? ""
     }
     
+    /// True if the backward text field shows its placeholder (empty or default text).
     var isShowingBackwardPlaceholder: Bool {
-        stringValue.isEmpty || stringValue == "Pass Backward"
+        let text = stringValue
+        return text.isEmpty || text == "Type a value to pass backward..."
     }
     
     var isSwitchOn: Bool {

@@ -24,21 +24,21 @@ final class DemoUITests: XCTestCase {
     }
     
     @MainActor
-    func testForwardValueIsInheritedByPushedScreen() throws {
+    func testForwardValueIsInheritedByNextScreen() throws {
         app.forwardTextField.clearAndEnterText("shared-forward")
-        app.pushScreen()
         
+        app.pushScreen()
         XCTAssertEqual(app.forwardTextField.stringValue, "shared-forward")
     }
     
     @MainActor
-    func testForwardValueSetOnChildDoesNotOverwriteRoot() throws {
-        app.forwardTextField.clearAndEnterText("root-forward")
+    func testForwardValueSetOnLaterScreenDoesNotAffectEarlier() throws {
+        app.forwardTextField.clearAndEnterText("earlier-forward")
         app.pushScreen()
-        app.forwardTextField.clearAndEnterText("child-forward")
+        app.forwardTextField.clearAndEnterText("later-forward")
         app.popScreen()
         
-        XCTAssertEqual(app.forwardTextField.stringValue, "root-forward")
+        XCTAssertEqual(app.forwardTextField.stringValue, "earlier-forward")
     }
     
     @MainActor
@@ -50,19 +50,82 @@ final class DemoUITests: XCTestCase {
         wait(for: [expectation], timeout: 3)
     }
     
-    // MARK: - Backward preferences (PreferenceKey)
+    @MainActor
+    func testMultiplePushLevelsPreserveForwardValue() throws {
+        app.forwardTextField.clearAndEnterText("deep-forward")
+        app.pushScreen()
+        XCTAssertEqual(app.forwardTextField.stringValue, "deep-forward")
+        
+        app.pushScreen()
+        XCTAssertEqual(app.forwardTextField.stringValue, "deep-forward")
+    }
+    
+    // MARK: - Counter (Int @ValueEntry)
     
     @MainActor
-    func testBackwardPreferencePropagatesToParentScreen() throws {
-        app.pushScreen()
-        app.backwardTextField.clearAndEnterText("from-child")
-        app.popScreen()
-        
-        XCTAssertEqual(app.backwardTextField.stringValue, "from-child")
+    func testCounterDefaultOnRootScreen() throws {
+        XCTAssertEqual(app.counterValueLabel.label, "0")
     }
     
     @MainActor
-    func testBackwardPreferenceDoesNotPropagateWhenChildBlocksIt() throws {
+    func testCounterIncrement() throws {
+        app.counterIncrementButton.tap()
+        XCTAssertEqual(app.counterValueLabel.label, "1")
+        
+        app.counterIncrementButton.tap()
+        XCTAssertEqual(app.counterValueLabel.label, "2")
+    }
+    
+    @MainActor
+    func testCounterDecrement() throws {
+        app.counterIncrementButton.tap()
+        app.counterIncrementButton.tap()
+        app.counterDecrementButton.tap()
+        XCTAssertEqual(app.counterValueLabel.label, "1")
+    }
+    
+    @MainActor
+    func testCounterReset() throws {
+        app.counterIncrementButton.tap()
+        app.counterIncrementButton.tap()
+        app.counterIncrementButton.tap()
+        app.counterResetButton.tap()
+        XCTAssertEqual(app.counterValueLabel.label, "0")
+    }
+    
+    @MainActor
+    func testCounterIsInheritedByNextScreen() throws {
+        app.counterIncrementButton.tap()
+        app.counterIncrementButton.tap()
+        app.pushScreen()
+        
+        XCTAssertEqual(app.counterValueLabel.label, "2")
+    }
+    
+    @MainActor
+    func testCounterSetOnLaterScreenDoesNotAffectEarlier() throws {
+        app.counterIncrementButton.tap()
+        app.pushScreen()
+        app.counterIncrementButton.tap()
+        app.counterIncrementButton.tap()
+        app.popScreen()
+        
+        XCTAssertEqual(app.counterValueLabel.label, "1")
+    }
+    
+    // MARK: - Backward preferences (PreferenceKey)
+    
+    @MainActor
+    func testBackwardPreferencePropagatesToPreviousScreen() throws {
+        app.pushScreen()
+        app.backwardTextField.clearAndEnterText("from-later")
+        app.popScreen()
+        
+        XCTAssertEqual(app.backwardTextField.stringValue, "from-later")
+    }
+    
+    @MainActor
+    func testBackwardPreferenceDoesNotPropagateWhenBlocked() throws {
         app.pushScreen()
         app.preventBackwardToggle.setSwitch(on: true)
         app.backwardTextField.clearAndEnterText("blocked")
@@ -73,7 +136,7 @@ final class DemoUITests: XCTestCase {
     }
     
     @MainActor
-    func testBackwardPreferenceStillPropagatesWhenChildAllowsIt() throws {
+    func testBackwardPreferencePropagatesWhenAllowed() throws {
         app.pushScreen()
         app.preventBackwardToggle.setSwitch(on: false)
         app.backwardTextField.clearAndEnterText("allowed")
@@ -83,16 +146,6 @@ final class DemoUITests: XCTestCase {
     }
     
     // MARK: - Navigation stack integration
-    
-    @MainActor
-    func testMultiplePushLevelsPreserveForwardValue() throws {
-        app.forwardTextField.clearAndEnterText("deep-forward")
-        app.pushScreen()
-        XCTAssertEqual(app.forwardTextField.stringValue, "deep-forward")
-        
-        app.pushScreen()
-        XCTAssertEqual(app.forwardTextField.stringValue, "deep-forward")
-    }
     
     @MainActor
     func testBackwardPreferenceFromDeepScreenReachesRoot() throws {
