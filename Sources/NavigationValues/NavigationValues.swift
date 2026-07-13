@@ -8,35 +8,19 @@
 import SwiftUI
 import Observation
 
-public struct LinkedScreenViewModifier: ViewModifier {
-    public func body(content: Content) -> some View {
-        content
-            .transformPreference(ScreenContext.Preference.self) { values in
-                for (prev, next) in zip(values, values.dropFirst()) {
-                    prev.next = next
-                    next.previous = prev
-                }
-            }
-            .onPreferenceChange(ScreenContext.Preference.self) { _ in }
+public class NavigationStack: ScreenContext {
+    public override func handleNewChild(_ child: ScreenContext) {
+        guard child.parent == nil else { return }
+        
+        super.handleNewChild(child)
+        child.previous = children.last
     }
 }
 
-class NavigationStack: ScreenContext { }
-
 extension View {
-    /// Links all of the child screen contexts.
-    /// - Returns: A view modified with the linked screen context.
-    @ViewBuilder public func linkScreens() -> some View {
-        modifier(LinkedScreenViewModifier())
-    }
-    
     /// Declares a navigation stack.
-    /// - Parameters:
-    ///   - linkToPrevious: Indicates whether to link with the previous screen context. Used to correctly get the value when the view's body is computed for the first time. If there is a strict forward and backward relationship between screens, it is usually necessary to be **true**.
-    /// - Returns: A view modified with the linked screen context.
-    @ViewBuilder public func navigationContext(linkToPrevious: Bool = true) -> some View {
-        linkScreens()
-            .screenContext(NavigationStack(), linkToPrevious: linkToPrevious)
+    @ViewBuilder public func navigationContext() -> some View {
+        screenContext(NavigationStack())
     }
 }
 
@@ -50,20 +34,16 @@ struct ScreenContextViewModifier<T: ScreenContext>: ViewModifier {
     
     @State var screenContext: T
     @State var onRelease: OnRelease = OnRelease()
-    let linkToPrevious: Bool
-    
-    init(screenContext: T = T(), linkToPrevious: Bool = false) {
+
+    init(screenContext: T = T()) {
         self._screenContext = State(initialValue: screenContext)
-        self.linkToPrevious = linkToPrevious
     }
     
     func body(content: Content) -> some View {
         content
             .transformEnvironment(\.screenContext) { screenContext in
                 onRelease.release = screenContext.cleanup
-                screenContext.parent = parent
-                guard linkToPrevious, screenContext.previous == nil, !parent.isParent(of: screenContext) else { return }
-                screenContext.previous = parent.children.last
+                parent.handleNewChild(screenContext)
             }
             .environment(\.screenContext, screenContext)
             .transformPreference(ScreenContext.Preference.self, { values in

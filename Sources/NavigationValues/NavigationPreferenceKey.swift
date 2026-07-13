@@ -40,7 +40,7 @@ public extension View {
         _ context: T = ScreenContext(),
         linkToPrevious: Bool = true
     ) -> some View {
-        modifier(ScreenContextViewModifier<T>(screenContext: context, linkToPrevious: linkToPrevious))
+        modifier(ScreenContextViewModifier<T>(screenContext: context))
     }
     
     /// Registers an action to perform when the value of a screen preference key changes.

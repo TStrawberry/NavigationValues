@@ -208,6 +208,10 @@ open class ScreenContext {
         preferences.removeAll()
         preferenceActions.removeAll()
     }
+    
+    open func handleNewChild(_ child: ScreenContext) {
+        child.parent = self
+    }
 }
 
 extension ScreenContext {
