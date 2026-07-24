@@ -9,10 +9,10 @@ import Observation
 import SwiftUI
 
 @dynamicMemberLookup
-public enum NeverType {
+public struct NeverType {
     public subscript<T>(dynamicMember dynamicMember: String) -> T {
-        set { fatalError() }
-        get { fatalError() }
+        set { }
+        get { fatalError("Should never be called") }
     }
 }
 
@@ -30,7 +30,7 @@ open class ScreenContext {
     
     private var never: NeverType {
         set { }
-        get { fatalError("Should never be called directly") }
+        get { NeverType() }
     }
     
     public required init() {
