@@ -39,7 +39,7 @@ Add NavigationValues as a Swift Package dependency in Xcode or in your `Package.
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/tstrawberry/NavigationValues.git", from: "1.0.2"),
+    .package(url: "https://github.com/tstrawberry/NavigationValues.git", from: "1.1.0"),
 ]
 ```
 
