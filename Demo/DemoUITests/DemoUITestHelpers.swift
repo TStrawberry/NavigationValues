@@ -6,76 +6,123 @@
 
 import XCTest
 
-extension XCUIApplication {
+/// One pushed `Screen` in the navigation stack.
+///
+/// Every screen reuses the same control identifiers (`forwardTextField`, etc.).
+/// Query through this container (`screen-0`, `screen-1`, ...) so tests talk to
+/// the intended layer instead of the first match in the whole app.
+struct DemoScreen {
+    let element: XCUIElement
     
     // MARK: - Forward Value
     
     var forwardTextField: XCUIElement {
-        textFields["forwardTextField"]
+        element.textFields["forwardTextField"]
     }
     
     var startTimerButton: XCUIElement {
-        buttons["startTimerButton"]
+        element.buttons["startTimerButton"]
     }
     
     // MARK: - Counter (Int Forward Value)
     
     var counterDecrementButton: XCUIElement {
-        buttons["counterDecrementButton"]
+        element.buttons["counterDecrementButton"]
     }
     
     var counterIncrementButton: XCUIElement {
-        buttons["counterIncrementButton"]
+        element.buttons["counterIncrementButton"]
     }
     
     var counterResetButton: XCUIElement {
-        buttons["counterResetButton"]
+        element.buttons["counterResetButton"]
     }
     
     var counterValueLabel: XCUIElement {
-        staticTexts["counterValueLabel"]
+        element.staticTexts["counterValueLabel"]
     }
     
     // MARK: - Backward Value
     
     var backwardTextField: XCUIElement {
-        textFields["backwardTextField"]
+        element.textFields["backwardTextField"]
     }
     
     var preventBackwardToggle: XCUIElement {
-        if switches["preventBackwardToggle"].exists {
-            return switches["preventBackwardToggle"]
+        let byIdentifier = element.switches["preventBackwardToggle"]
+        if byIdentifier.exists {
+            return byIdentifier
         }
-        if switches["Allow passing backward to previous screens"].exists {
-            return switches["Allow passing backward to previous screens"]
+        let byLabel = element.switches["Allow passing backward to previous screens"]
+        if byLabel.exists {
+            return byLabel
         }
-        return switches.firstMatch
+        return element.switches.firstMatch
     }
     
     // MARK: - Navigation
     
     var pushButton: XCUIElement {
-        buttons["pushButton"]
+        element.buttons["pushButton"]
+    }
+    
+    func waitForExistence(timeout: TimeInterval) -> Bool {
+        element.waitForExistence(timeout: timeout)
+    }
+}
+
+extension XCUIApplication {
+    
+    private static let screenIdentifierPrefix = "screen-"
+    
+    /// Depth of the visible screen (`0` = root).
+    ///
+    /// After a push, only the top `screen-N` is typically in the tree
+    /// (for example `screen-2` with no `screen-0` / `screen-1`). Scan from
+    /// the highest plausible depth so missing intermediate IDs are fine.
+    var currentDepth: Int {
+        for depth in stride(from: 8, through: 0, by: -1) {
+            if screen(at: depth).element.exists {
+                return depth
+            }
+        }
+        return 0
+    }
+    
+    func screen(at depth: Int) -> DemoScreen {
+        DemoScreen(element: descendants(matching: .any)["\(Self.screenIdentifierPrefix)\(depth)"])
+    }
+    
+    var currentScreen: DemoScreen {
+        screen(at: currentDepth)
     }
     
     // MARK: - Launch & Navigation Helpers
     
     func launchDemo() {
         launch()
-        XCTAssertTrue(forwardTextField.waitForExistence(timeout: 5))
+        XCTAssertTrue(screen(at: 0).waitForExistence(timeout: 5))
     }
     
     func pushScreen() {
-        pushButton.tap()
-        XCTAssertTrue(forwardTextField.waitForExistence(timeout: 5))
+        let nextDepth = currentDepth + 1
+        currentScreen.pushButton.tap()
+        XCTAssertTrue(screen(at: nextDepth).waitForExistence(timeout: 5))
+        XCTAssertTrue(screen(at: nextDepth).forwardTextField.waitForExistence(timeout: 5))
     }
     
     /// Pops the current screen using the navigation bar back button.
     func popScreen() {
-        let backButton = navigationBars.buttons.firstMatch
+        let depthToPop = currentDepth
+        XCTAssertGreaterThan(depthToPop, 0, "Cannot pop the root screen")
+        
+        let backButton = buttons["BackButton"]
         XCTAssertTrue(backButton.waitForExistence(timeout: 5))
         backButton.tap()
-        XCTAssertTrue(forwardTextField.waitForExistence(timeout: 5))
+        
+        // The previous screen typically leaves the tree while covered, then
+        // comes back after pop — wait for that identifier to reappear.
+        XCTAssertTrue(screen(at: depthToPop - 1).waitForExistence(timeout: 5))
     }
 }
 

@@ -16,10 +16,10 @@ struct Screen: View {
     @State var backwardValue: String = ""
     @State var isPreventingPassingBack: Bool = false
     @State var timer: Timer?
-    @State var depth: Int = 0
     
-    /// Walk the ScreenContext linked list to count how deep we are
-    func computeDepth() -> Int {
+    /// Walk the ScreenContext linked list to count how deep we are.
+    /// Used for the level badge and a unique accessibility container per stack layer.
+    var depth: Int {
         var count = 0
         var current: ScreenContext? = screenContext
         while let prev = current?.previous {
@@ -83,11 +83,12 @@ struct Screen: View {
                 }
             }
             .padding(.vertical, 8)
+            // Expose this screen as a queryable container so UI tests can
+            // distinguish stacked screens that otherwise share the same control IDs.
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("screen-\(depth)")
         }
         .background(Color(.systemGroupedBackground))
-        .onAppear {
-            depth = computeDepth()
-        }
         // When backwardValue changes locally, update it into the ScreenContext Preference
         .onChange(of: backwardValue, initial: false) { _, newValue in
             screenContext.updatePreference(BackwardValue.self, value: newValue)
