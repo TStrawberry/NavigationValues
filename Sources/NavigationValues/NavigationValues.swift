@@ -9,11 +9,26 @@ import SwiftUI
 import Observation
 
 public class NavigationStack: ScreenContext {
+    public override var children: [ScreenContext] {
+        get { super.children }
+        set {
+            if 1 < newValue.count {
+                for (p, n) in zip(newValue, newValue.dropFirst(1)) {
+                    p.next = n
+                    n.previous = p
+                }
+            }
+            super.children = newValue
+        }
+    }
+    
     public override func handleNewChild(_ child: ScreenContext) {
         guard child.parent == nil else { return }
         
         super.handleNewChild(child)
-        child.previous = children.last
+        if child.previous == nil {
+            child.previous = children.last
+        }
     }
 }
 
