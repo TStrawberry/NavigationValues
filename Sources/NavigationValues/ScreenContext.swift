@@ -159,16 +159,10 @@ open class ScreenContext {
     
     public  func willSet<Member>(_ keyPath: WritableKeyPath<ScreenContext, Member>) {
         self._$observationRegistrar.willSet(self, keyPath: transformKeyPath(keyPath))
-        
-        guard self.next?.environment(keyPath) == nil else { return }
-        self.next?.willSet(keyPath)
     }
     
     public func didSet<Member>(_ keyPath: WritableKeyPath<ScreenContext, Member>) {
         self._$observationRegistrar.didSet(self, keyPath: transformKeyPath(keyPath))
-        
-        guard self.next?.environment(keyPath) == nil else { return }
-        self.next?.didSet(keyPath)
     }
     
     public func updatePreferenceAction<K: NavigationValues.PreferenceKey>(
