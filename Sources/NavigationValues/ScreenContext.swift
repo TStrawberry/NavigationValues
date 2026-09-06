@@ -8,17 +8,9 @@
 import Observation
 import SwiftUI
 
-@dynamicMemberLookup
-public struct NeverType {
-    public subscript<T>(dynamicMember dynamicMember: String) -> T {
-        set { }
-        get { fatalError("Should never be called") }
-    }
-}
-
 @MainActor
 @Observable
-open class ScreenContext {
+public final class ScreenContext {
     @ObservationIgnored public internal(set) weak var parent: ScreenContext?
     @ObservationIgnored public internal(set) var children: [ScreenContext] = []
     @ObservationIgnored public weak var previous: ScreenContext?
@@ -28,19 +20,11 @@ open class ScreenContext {
     @ObservationIgnored var preferences: [ObjectIdentifier: Any] = [:]
     @ObservationIgnored var preferenceActions: [ObjectIdentifier: (Any, (Any) -> Void) -> Void] = [:]
     
-    private var never: NeverType {
-        set { }
-        get { NeverType() }
-    }
-    
-    public required init() {
+    /// Creates a screen context.
+    /// - Parameter behavior: An optional ``ScreenContextBehavior`` that extends the
+    ///   context with custom capabilities through composition. Defaults to `nil`.
+    public init() {
         
-    }
-    
-    /// For internal usage,  should never be called directly
-    public final func keyPathAppending<T>(_ keyPath: WritableKeyPath<NeverType, T>) -> WritableKeyPath<ScreenContext, T> {
-        let toNever = \ScreenContext.never
-        return toNever.appending(path: keyPath)
     }
     
     public subscript<Member>(env keyPath: WritableKeyPath<ScreenContext, Member>) -> Member? {
@@ -63,7 +47,7 @@ open class ScreenContext {
     public subscript<Member>(env keyPath: WritableKeyPath<ScreenContext, Member>) -> Member? where Member: Equatable {
         get {
             self.access(keyPath)
-            return environments[env: keyPath] ?? previous?[env: keyPath]
+            return self.environmentValue(keyPath) ?? previous?[env: keyPath]
         }
         set {
             guard shouldNotifyObservers(environments[env: keyPath], newValue) else {
@@ -148,21 +132,17 @@ open class ScreenContext {
         return result
     }
     
-    func transformKeyPath<Node, Member>(_ keyPath: KeyPath<Node, Member>) -> KeyPath<Node, Member> {
-        return keyPath
-    }
-    
     public func access<Member>(_ keyPath: KeyPath<ScreenContext, Member>) {
-        self.access(keyPath: transformKeyPath(keyPath))
+        self.access(keyPath: keyPath)
         self.previous?.access(keyPath)
     }
     
     public  func willSet<Member>(_ keyPath: WritableKeyPath<ScreenContext, Member>) {
-        self._$observationRegistrar.willSet(self, keyPath: transformKeyPath(keyPath))
+        self._$observationRegistrar.willSet(self, keyPath: keyPath)
     }
     
     public func didSet<Member>(_ keyPath: WritableKeyPath<ScreenContext, Member>) {
-        self._$observationRegistrar.didSet(self, keyPath: transformKeyPath(keyPath))
+        self._$observationRegistrar.didSet(self, keyPath: keyPath)
     }
     
     public func updatePreferenceAction<K: NavigationValues.PreferenceKey>(
@@ -188,24 +168,45 @@ open class ScreenContext {
         }
     }
     
-    open func top() -> ScreenContext {
+    /// The first context in the `previous` chain, walking toward earlier screens.
+    public func head() -> ScreenContext {
+        guard let previous else { return self }
+        return previous.head()
+    }
+    
+    /// The last context in the `next` chain, walking toward later screens.
+    public func tail() -> ScreenContext {
+        guard let next else { return self }
+        return next.tail()
+    }
+    
+    public func top() -> ScreenContext {
         guard let lastChild = children.last else { return self }
         return lastChild.top()
     }
     
-    open func isParent(of child: ScreenContext) -> Bool {
+    public func isParent(of child: ScreenContext) -> Bool {
        return children.contains(where: { $0 === child })
     }
     
-    open func cleanup() {
+    /// Clears the context's stored state, then forwards to the behavior's cleanup hook.
+    public func cleanup() {
         environments.dict.removeAll()
         preferences.removeAll()
         preferenceActions.removeAll()
     }
-    
-    open func handleNewChild(_ child: ScreenContext) {
-        child.parent = self
+}
+
+extension ScreenContext {
+    public struct Flag: RawRepresentable, Hashable, Equatable, Sendable {
+        public let rawValue: Int
+        public init(rawValue: Int) { self.rawValue = rawValue }
+        
+        public static let plain: Flag = Flag(rawValue: 0)
+        public static let navigationStack: Flag = Flag(rawValue: 1)
     }
+    
+    @ValueEntry(.observationIgnored) public var flag: Flag = .plain
 }
 
 extension ScreenContext {
@@ -239,24 +240,6 @@ extension ScreenContext {
         case (nil, nil): return false
         default: return true
         }
-    }
-}
-
-extension ScreenContext {
-    public func head() -> ScreenContext? {
-        var result: ScreenContext? = self
-        while let previous = result?.previous {
-            result = previous
-        }
-        return result
-    }
-
-    public  func tail() -> ScreenContext? {
-        var result: ScreenContext? = self
-        while let next = result?.next{
-            result = next
-        }
-        return result
     }
 }
 

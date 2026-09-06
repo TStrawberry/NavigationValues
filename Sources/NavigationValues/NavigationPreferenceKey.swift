@@ -32,15 +32,14 @@ public protocol PreferenceKey {
 
 public extension View {
     /// Declares the screen context representing this view.
-    /// - Parameters:
-    ///   - context: The screen context to set, defaulting to a new instance.
-    ///   - linkToPrevious: Indicates whether to link with the previous screen context. Used to correctly get the value when the view's body is computed for the first time. If there is a strict forward and backward relationship between screens, it is usually necessary to be **true**.
-    /// - Returns: A view modified with the specified screen context.
-    func screenContext<T: ScreenContext>(
-        _ context: T = ScreenContext(),
-        linkToPrevious: Bool = true
+    /// - Parameter behavior: A ``ScreenContextBehavior`` that extends the context
+    ///   with custom capabilities through composition.
+    /// - Returns: A view modified with a new ``ScreenContext`` using that behavior.
+    func screenContext<Behavior: ScreenContextBehavior>(
+        _ behavior: Behavior = .defaultBehavior,
+        transformer: @MainActor @escaping (ScreenContext) -> Void = { _ in }
     ) -> some View {
-        modifier(ScreenContextViewModifier<T>(screenContext: context))
+        modifier(ScreenContextViewModifier(behavior: behavior, transformer: transformer))
     }
     
     /// Registers an action to perform when the value of a screen preference key changes.

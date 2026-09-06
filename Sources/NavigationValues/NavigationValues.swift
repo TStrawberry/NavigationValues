@@ -8,63 +8,47 @@
 import SwiftUI
 import Observation
 
-public class NavigationStack: ScreenContext {
-    public override var children: [ScreenContext] {
-        get { super.children }
-        set {
-            if 1 < newValue.count {
-                for (p, n) in zip(newValue, newValue.dropFirst(1)) {
-                    p.next = n
-                    n.previous = p
-                }
-            }
-            super.children = newValue
-        }
-    }
-    
-    public override func handleNewChild(_ child: ScreenContext) {
-        guard child.parent == nil else { return }
-        
-        super.handleNewChild(child)
-        if child.previous == nil {
-            child.previous = children.last
-        }
-    }
-}
-
-extension View {
-    /// Declares a navigation stack.
-    @ViewBuilder public func navigationContext() -> some View {
-        screenContext(NavigationStack())
-    }
-}
-
-struct ScreenContextViewModifier<T: ScreenContext>: ViewModifier {
+struct ScreenContextViewModifier<Behavior: ScreenContextBehavior>: ViewModifier {
     class OnRelease {
-        var release: () -> Void = { }
-        deinit { release() }
+        var release: @MainActor @Sendable () -> Void = { }
+        deinit {
+            Task { @MainActor [release]  in
+                release()
+            }
+        }
     }
     
     @Environment(\.screenContext) var parent
     
-    @State var screenContext: T
+    @State var screenContext: ScreenContext = ScreenContext()
     @State var onRelease: OnRelease = OnRelease()
-
-    init(screenContext: T = T()) {
-        self._screenContext = State(initialValue: screenContext)
+    
+    let behavior: Behavior
+    let transformer: @MainActor (ScreenContext) -> Void
+    
+    init(behavior: Behavior, transformer: @MainActor @escaping (ScreenContext) -> Void = { _ in }) {
+        self.behavior = behavior
+        self.transformer = transformer
     }
     
     func body(content: Content) -> some View {
         content
-            .transformEnvironment(\.screenContext) { screenContext in
+            .transformPreference(ScreenContext.Preference.self) { values in
+                screenContext.children = values
+                behavior.context(screenContext, didUpdateChildren: values)
+                
+                values = [screenContext]
+            }
+            .transformEnvironment(\.screenContext) { _ in
+                screenContext.flag = behavior.flag
+                transformer(screenContext)
+                
                 onRelease.release = screenContext.cleanup
-                parent.handleNewChild(screenContext)
+                screenContext.parent = parent
+
+                behavior.context(screenContext, didAttachTo: parent)
             }
             .environment(\.screenContext, screenContext)
-            .transformPreference(ScreenContext.Preference.self, { values in
-                screenContext.children = values
-                values = [screenContext]
-            })
-            .onPreferenceChange(ScreenContext.Preference.self) { _ in }
+            .onPreferenceChange(ScreenContext.Preference.self) { values in }
     }
 }

@@ -9,12 +9,8 @@ import SwiftUI
 
 @MainActor
 public extension EnvironmentValues {
-    class PlaceholderContext: ScreenContext {
-        public required init() { }
-    }
-    
     private struct ScreenContextKey: @preconcurrency EnvironmentKey {
-        @MainActor static let defaultValue: ScreenContext = PlaceholderContext()
+        @MainActor static let defaultValue: ScreenContext = ScreenContext()
     }
     
     var screenContext: ScreenContext {

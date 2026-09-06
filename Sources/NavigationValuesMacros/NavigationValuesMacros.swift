@@ -39,10 +39,10 @@ public struct ValueEntryMacro: AccessorMacro & PeerMacro {
             return [
                 """
                     get {
-                        self.environmentValue(keyPathAppending(\\NeverType.\(raw: name))) ?? Self.__Value_\(raw: name).defaultValue
+                        self.environmentValue(\\.\(raw: name)) ?? Self.__Value_\(raw: name).defaultValue
                     }
                     set {
-                        self.setEnvironment(keyPathAppending(\\NeverType.\(raw: name)), to: newValue)
+                        self.setEnvironment(\\.\(raw: name), to: newValue)
                     }
                 """
             ]
@@ -51,10 +51,10 @@ public struct ValueEntryMacro: AccessorMacro & PeerMacro {
         return [
             """
                 get {
-                    return self[env: keyPathAppending(\\NeverType.\(raw: name))] ?? Self.__Value_\(raw: name).defaultValue
+                    return self[env: \\.\(raw: name)] ?? Self.__Value_\(raw: name).defaultValue
                 }
                 set {
-                    self[env: keyPathAppending(\\NeverType.\(raw: name))] = newValue
+                    self[env: \\.\(raw: name)] = newValue
                 }
             """
         ]
@@ -93,9 +93,9 @@ public struct ValueEntryMacro: AccessorMacro & PeerMacro {
             return [DeclSyntax(
                 stringLiteral:
                     """
-                    struct __Value_\(name): SwiftUI.EnvironmentKey {
+                    struct __Value_\(name): @preconcurrency SwiftUI.EnvironmentKey {
                         @SwiftUICore.__EntryDefaultValue
-                        public static var defaultValue = \(defaultVal)
+                        @MainActor public static var defaultValue = \(defaultVal)
                     }
                     """
             )]
