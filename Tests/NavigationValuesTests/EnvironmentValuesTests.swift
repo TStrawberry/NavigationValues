@@ -6,14 +6,9 @@ import Testing
 @MainActor
 struct EnvironmentValuesTests {
     
-    @Test func placeholderContextType() {
-        let placeholder = EnvironmentValues.PlaceholderContext()
-        #expect(type(of: placeholder) == EnvironmentValues.PlaceholderContext.self)
-    }
-    
-    @Test func screenContextEnvironmentDefaultsToPlaceholder() {
+    @Test func screenContextEnvironmentDefaultsToPlainContext() {
         let values = EnvironmentValues()
-        #expect(values.screenContext is EnvironmentValues.PlaceholderContext)
+        #expect(type(of: values.screenContext) == ScreenContext.self)
     }
     
     @Test func screenContextEnvironmentCanBeReplaced() {
