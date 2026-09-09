@@ -94,10 +94,10 @@ struct Screen: View {
             screenContext.updatePreference(BackwardValue.self, value: newValue)
         }
         // Receive callbacks when a subsequent screen's backward preference changes
-        .onScreenPreferenceChange(BackwardValue.self) { value, backward in
+        .onScreenPreferenceChange(BackwardValue.self) { value, passBack in
             backwardValue = value
             if isPreventingPassingBack == false {
-                backward(value)
+                passBack(value)
             }
         }
     }

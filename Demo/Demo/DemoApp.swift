@@ -26,10 +26,10 @@ struct DemoApp: App {
         WindowGroup {
             NavigationStack(path: $manager.path) {
                 Screen()
-                    .screenContext(.navigationScreen)
+                    .screenContext(.navigation)
                     .navigationDestination(for: String.self) { _ in
                         Screen()
-                            .screenContext(.navigationScreen)
+                            .screenContext(.navigation)
                     }
             }
             .screenContext(.navigationStack)

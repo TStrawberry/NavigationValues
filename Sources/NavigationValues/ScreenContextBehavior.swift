@@ -34,9 +34,9 @@ import SwiftUI
 public protocol ScreenContextBehavior {
     /// The role this behavior stamps onto its ``ScreenContext``.
     ///
-    /// Copied onto the context when it attaches. The default is ``ScreenContext/Flag/plain``.
-    /// Override to advertise a role, such as ``ScreenContext/Flag/navigationStack``.
-    var flag: ScreenContext.Flag { get }
+    /// Copied onto the context when it attaches. The default is ``ScreenContext/Role/screen``.
+    /// Override to advertise a role, such as ``ScreenContext/Role/navigationStack``.
+    var role: ScreenContext.Role { get }
     
     /// Called after the context's ``ScreenContext/children`` are collected from
     /// the view hierarchy.
@@ -63,13 +63,13 @@ public protocol ScreenContextBehavior {
 }
 
 public extension ScreenContextBehavior {
-    var flag: ScreenContext.Flag { .plain }
+    var role: ScreenContext.Role { .screen }
     func context(_ context: ScreenContext, didUpdateChildren children: [ScreenContext]) { }
     func context(_ context: ScreenContext, didAttachTo parent: ScreenContext) { }
 }
 
 public extension ScreenContextBehavior where Self == NavigationScreenBehavior {
-    static var navigationScreen: NavigationScreenBehavior {
+    static var navigation: NavigationScreenBehavior {
         NavigationScreenBehavior()
     }
 }
@@ -81,7 +81,7 @@ public extension ScreenContextBehavior where Self == NavigationStackBehavior {
 }
 
 public extension ScreenContextBehavior where Self == DefaultScreenContextBehavior {
-    static var defaultBehavior: DefaultScreenContextBehavior {
+    static var screen: DefaultScreenContextBehavior {
         DefaultScreenContextBehavior()
     }
 }
@@ -98,7 +98,7 @@ public struct DefaultScreenContextBehavior: ScreenContextBehavior {
 public struct NavigationStackBehavior: ScreenContextBehavior {
     init() { }
     
-    public var flag: ScreenContext.Flag { .navigationStack }
+    public var role: ScreenContext.Role { .navigationStack }
     
     public func context(_ context: ScreenContext, didUpdateChildren children: [ScreenContext]) {
         for (previous, next) in zip(children, children.dropFirst(1)) {

@@ -90,9 +90,9 @@ struct DetailView: View {
         @Bindable var screenContext = screenContext
 
         TextField("Title", text: $screenContext.title)
-            .onScreenPreferenceChange(SelectedItem.self) { value, backward in
+            .onScreenPreferenceChange(SelectedItem.self) { value, passBack in
                 // Handle value from next screens
-                backward(modifiedValue)
+                passBack(modifiedValue)
             }
     }
 }

@@ -73,17 +73,17 @@ struct ScreenContextTests {
     @Test func updatePreferenceInvokesRegisteredAction() {
         let context = ScreenContext()
         var receivedValue: String?
-        var backwardCalled = false
+        var passBackCalled = false
         
-        context.updatePreferenceAction(TestStringPreference.self) { value, backward in
+        context.updatePreferenceAction(TestStringPreference.self) { value, passBack in
             receivedValue = value
-            backward("upstream")
-            backwardCalled = true
+            passBack("upstream")
+            passBackCalled = true
         }
         context.updatePreference(TestStringPreference.self, value: "hello")
         
         #expect(receivedValue == "hello")
-        #expect(backwardCalled)
+        #expect(passBackCalled)
     }
     
     @Test func updatePreferencePropagatesToPreviousViaBackward() {
@@ -95,8 +95,8 @@ struct ScreenContextTests {
         parent.updatePreferenceAction(TestStringPreference.self) { value, _ in
             parentValue = value
         }
-        child.updatePreferenceAction(TestStringPreference.self) { value, backward in
-            backward(value)
+        child.updatePreferenceAction(TestStringPreference.self) { value, passBack in
+            passBack(value)
         }
         child.updatePreference(TestStringPreference.self, value: "from-child")
         

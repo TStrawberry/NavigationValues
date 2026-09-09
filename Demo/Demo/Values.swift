@@ -29,7 +29,7 @@ import SwiftUI
 ///
 /// Usage:
 /// - Later screen: screenContext.updatePreference(BackwardValue.self, value: "hello")
-/// - Earlier screen: .onScreenPreferenceChange(BackwardValue.self) { value, backward in ... }
+/// - Earlier screen: .onScreenPreferenceChange(BackwardValue.self) { value, passBack in ... }
 struct BackwardValue: NavigationValues.PreferenceKey {
     typealias Value = String
     static let defaultValue: String = ""

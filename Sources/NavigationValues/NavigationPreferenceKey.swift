@@ -14,16 +14,17 @@ import SwiftUI
 ///         static let defaultValue: String = ""
 ///     }
 ///
-///     .onScreenPreferenceChange(BackwardValue.self) { value, backward in
+///     .onScreenPreferenceChange(BackwardValue.self) { value, passBack in
 ///        backwardValue = value
 ///        if shouldPassBackward {
-///            backward(value)
+///            passBack(value)
 ///        }
 ///     }
 ///
 /// - Note: The preference key is used to store and retrieve values from the screen context.
 public protocol PreferenceKey {
-    typealias Backward = (Value) -> Void
+    /// A closure that continues propagating a preference value toward earlier screens.
+    typealias PassBack = (Value) -> Void
     
     associatedtype Value: Equatable
     
@@ -32,24 +33,34 @@ public protocol PreferenceKey {
 
 public extension View {
     /// Declares the screen context representing this view.
-    /// - Parameter behavior: A ``ScreenContextBehavior`` that extends the context
-    ///   with custom capabilities through composition.
+    /// - Parameters:
+    ///   - behavior: A ``ScreenContextBehavior`` that extends the context
+    ///     with custom capabilities through composition.
+    ///   - configure: A closure that customizes the newly created ``ScreenContext``.
     /// - Returns: A view modified with a new ``ScreenContext`` using that behavior.
     func screenContext<Behavior: ScreenContextBehavior>(
-        _ behavior: Behavior = .defaultBehavior,
-        transformer: @MainActor @escaping (ScreenContext) -> Void = { _ in }
+        _ behavior: Behavior = .screen,
+        configure: @MainActor @escaping (ScreenContext) -> Void = { _ in }
     ) -> some View {
-        modifier(ScreenContextViewModifier(behavior: behavior, transformer: transformer))
+        modifier(ScreenContext.ViewModifier(behavior: behavior, configure: configure))
     }
     
     /// Registers an action to perform when the value of a screen preference key changes.
+    ///
+    /// - Important: At the **same screen (page) level**, the registered callback is
+    ///   invoked **only once**. Each ``ScreenContext`` stores a single action per
+    ///   preference key; registering another `onScreenPreferenceChange` for the same
+    ///   key on that screen **replaces** the previous callback. It does **not**
+    ///   accumulate. Call `passBack` if the value should continue to earlier screens.
+    ///
     /// - Parameters:
     ///   - key: The preference key type to observe for changes.
-    ///   - action: A closure called with the new value sent back from screens and backward handler when the preference changes.
+    ///   - action: A closure called with the new value and a ``PreferenceKey/PassBack``
+    ///     handler when the preference changes.
     /// - Returns: A view that triggers the action when the specified preference changes.
     func onScreenPreferenceChange<K>(
         _ key: K.Type = K.self,
-        perform action: @escaping (K.Value, K.Backward) -> Void
+        perform action: @escaping (K.Value, K.PassBack) -> Void
     ) -> some View where K : NavigationValues.PreferenceKey, K.Value : Equatable {
         modifier(ScreenPreferenceViewModifier(key: key, action: action))
     }
@@ -59,7 +70,7 @@ struct ScreenPreferenceViewModifier<K>: ViewModifier where K : NavigationValues.
     @Environment(\.screenContext) var screenContext
     
     let key: K.Type
-    let action: (K.Value, K.Backward) -> Void
+    let action: (K.Value, K.PassBack) -> Void
     
     func body(content: Content) -> some View {
         content

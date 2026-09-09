@@ -147,12 +147,12 @@ public final class ScreenContext {
     
     public func updatePreferenceAction<K: NavigationValues.PreferenceKey>(
         _ key: K.Type,
-        action: @escaping (K.Value, K.Backward) -> Void
+        action: @escaping (K.Value, K.PassBack) -> Void
     ) where K.Value : Equatable {
-        preferenceActions[ObjectIdentifier(K.self)] = { anyValue, backward in
+        preferenceActions[ObjectIdentifier(K.self)] = { anyValue, passBack in
             guard let value = anyValue as? K.Value else { return }
             action(value, { v in
-                backward(v as Any)
+                passBack(v as Any)
             })
         }
     }
@@ -198,15 +198,19 @@ public final class ScreenContext {
 }
 
 extension ScreenContext {
-    public struct Flag: RawRepresentable, Hashable, Equatable, Sendable {
+    /// The role a behavior stamps onto a ``ScreenContext``.
+    ///
+    /// Use ``screen`` for a regular screen and ``navigationStack`` for a stack
+    /// that owns child screens.
+    public struct Role: RawRepresentable, Hashable, Equatable, Sendable {
         public let rawValue: Int
         public init(rawValue: Int) { self.rawValue = rawValue }
         
-        public static let plain: Flag = Flag(rawValue: 0)
-        public static let navigationStack: Flag = Flag(rawValue: 1)
+        public static let screen: Role = Role(rawValue: 0)
+        public static let navigationStack: Role = Role(rawValue: 1)
     }
     
-    @ValueEntry(.observationIgnored) public var flag: Flag = .plain
+    @ValueEntry(.observationIgnored) public internal(set) var role: Role = .screen
 }
 
 extension ScreenContext {
