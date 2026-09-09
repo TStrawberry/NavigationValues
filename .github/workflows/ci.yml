@@ -22,7 +22,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Xcode
         uses: maxim-lobanov/setup-xcode@v1
@@ -30,7 +30,7 @@ jobs:
           xcode-version: latest-stable
 
       - name: Cache SwiftPM build
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: .build
           key: spm-${{ runner.os }}-${{ hashFiles('Package.swift', 'Package.resolved') }}
@@ -55,30 +55,209 @@ jobs:
       - name: List available simulators
         run: xcrun simctl list devices available
 
+      # Prefer a full-size iPhone so ScrollView controls stay tappable.
+      # The previous "first iPhone in the JSON list" pick could land on SE/mini.
       - name: Select iOS Simulator
         id: simulator
         run: |
-          DEVICE_ID=$(xcrun simctl list devices available -j \
-            | python3 -c "
-          import json, sys
+          RESULT=$(xcrun simctl list devices available -j | python3 -c "
+          import json, re, sys
+
           devices = json.load(sys.stdin)['devices']
-          for runtime in sorted(devices.keys(), reverse=True):
-              if 'iOS' not in runtime:
-                  continue
-              for device in devices[runtime]:
-                  if device.get('isAvailable') and 'iPhone' in device['name']:
-                      print(device['udid'])
-                      raise SystemExit(0)
-          raise SystemExit('No available iPhone simulator found')
+
+          def ios_key(runtime):
+              match = re.search(r'iOS-(\d+)-(\d+)', runtime)
+              return (int(match.group(1)), int(match.group(2))) if match else (0, 0)
+
+          runtimes = sorted((k for k in devices if 'iOS' in k), key=ios_key, reverse=True)
+          small = ('SE', 'mini')
+          preferred = ('iPhone 17', 'iPhone 16', 'iPhone 15')
+
+          def pick(runtime):
+              available = [
+                  d for d in devices[runtime]
+                  if d.get('isAvailable') and 'iPhone' in d.get('name', '')
+              ]
+              full_size = [d for d in available if not any(s in d['name'] for s in small)]
+              pool = full_size or available
+              for name in preferred:
+                  for device in pool:
+                      if device['name'] == name:
+                          return device
+              return pool[0] if pool else None
+
+          chosen = next((pick(rt) for rt in runtimes if pick(rt)), None)
+          if not chosen:
+              sys.exit('No available iPhone simulator found')
+          print(f\"{chosen['udid']}|{chosen['name']}\")
           ")
+          DEVICE_ID=${RESULT%%|*}
+          DEVICE_NAME=${RESULT#*|}
           echo "device_id=$DEVICE_ID" >> "$GITHUB_OUTPUT"
-          echo "Selected simulator UDID: $DEVICE_ID"
+          echo "device_name=$DEVICE_NAME" >> "$GITHUB_OUTPUT"
+          echo "Selected simulator: $DEVICE_NAME ($DEVICE_ID)"
 
       - name: UI Tests
         run: |
+          rm -rf TestResults.xcresult
           xcodebuild test \
             -project Demo/Demo.xcodeproj \
             -scheme DemoUITests \
             -destination "platform=iOS Simulator,id=${{ steps.simulator.outputs.device_id }}" \
             -only-testing:DemoUITests \
-            -enableCodeCoverage YES
+            -parallel-testing-enabled NO \
+            -resultBundlePath TestResults.xcresult \
+            -IDESkipPackagePluginValidation=YES
+
+      # GitHub's UI Tests step log is huge (compile + simulator). This step
+      # prints only pass/fail counts and the actual XCTAssert text.
+      - name: Print UI test failures
+        if: always()
+        run: |
+          python3 <<'PY'
+          import json, os, subprocess, sys
+
+          path = "TestResults.xcresult"
+
+          def gh_escape(text):
+              return (
+                  str(text)
+                  .replace("%", "%25")
+                  .replace("\r", "%0D")
+                  .replace("\n", "%0A")
+              )
+
+          def run_xcresult(*args):
+              result = subprocess.run(
+                  ["xcrun", "xcresulttool", *args, "--path", path],
+                  capture_output=True,
+                  text=True,
+              )
+              return result.returncode, result.stdout, result.stderr
+
+          def load_json(args):
+              code, stdout, stderr = run_xcresult(*args)
+              if code != 0 or not stdout.strip():
+                  return None, stderr or stdout
+              try:
+                  return json.loads(stdout), None
+              except json.JSONDecodeError as error:
+                  return None, f"{error}\n{stdout[:2000]}"
+
+          def collect_failures(node, acc):
+              if isinstance(node, dict):
+                  listed = node.get("testFailures")
+                  if isinstance(listed, list):
+                      acc.extend(item for item in listed if isinstance(item, dict))
+                  result = str(
+                      node.get("result")
+                      or node.get("testStatus")
+                      or node.get("status")
+                      or ""
+                  ).lower()
+                  name = node.get("testName") or node.get("identifier")
+                  message = node.get("failureText") or node.get("failureMessage")
+                  looks_like_test = bool(name) and ("test" in str(name).lower() or "()" in str(name))
+                  if result in {"failed", "failure"} and (message or looks_like_test):
+                      acc.append(
+                          {
+                              "testName": name,
+                              "targetName": node.get("targetName"),
+                              "failureText": message,
+                          }
+                      )
+                  for value in node.values():
+                      collect_failures(value, acc)
+              elif isinstance(node, list):
+                  for item in node:
+                      collect_failures(item, acc)
+
+          def unique_failures(items):
+              seen = set()
+              unique = []
+              for item in items:
+                  if not isinstance(item, dict):
+                      continue
+                  key = (
+                      item.get("testName"),
+                      item.get("targetName"),
+                      item.get("failureText"),
+                  )
+                  if key in seen:
+                      continue
+                  seen.add(key)
+                  unique.append(item)
+              return unique
+
+          print("::group::UI test result summary")
+          if not os.path.exists(path):
+              print("::error::No TestResults.xcresult found. xcodebuild likely failed before tests produced a result bundle.")
+              sys.exit(0)
+
+          summary, summary_error = load_json(["get", "test-results", "summary"])
+          if summary is None:
+              print("xcresulttool summary could not be parsed:")
+              print(summary_error)
+          else:
+              print(json.dumps(summary, indent=2, ensure_ascii=False))
+          print("::endgroup::")
+
+          failures = []
+          if isinstance(summary, dict):
+              collect_failures(summary, failures)
+              failures = unique_failures(failures)
+
+          if not failures:
+              tests, tests_error = load_json(["get", "test-results", "tests"])
+              if tests is None:
+                  print("::group::xcresulttool tests (fallback)")
+                  print(tests_error)
+                  print("::endgroup::")
+              else:
+                  collect_failures(tests, failures)
+                  failures = unique_failures(failures)
+
+          print()
+          print("=" * 72)
+          if not failures:
+              print("No per-test failure details were found in the result bundle.")
+              print("Open the uploaded TestResults.xcresult artifact in Xcode for full logs.")
+          else:
+              print(f"UI TEST FAILURES ({len(failures)})")
+              print("=" * 72)
+              for item in failures:
+                  target = item.get("targetName") or "DemoUITests"
+                  name = item.get("testName") or "unknown test"
+                  text = item.get("failureText") or "(no failure message in summary)"
+                  print()
+                  print(f"{target}.{name}")
+                  print(text)
+                  print(
+                      f"::error title={gh_escape(name)}::{gh_escape(target + '.' + name + ': ' + text)}"
+                  )
+          print("=" * 72)
+          PY
+
+      - name: Export failure screenshots
+        if: failure()
+        run: |
+          mkdir -p ui-test-attachments
+          xcrun xcresulttool export attachments \
+            --path TestResults.xcresult \
+            --output-path ui-test-attachments \
+            --only-failures \
+            || xcrun xcresulttool export attachments \
+                 --path TestResults.xcresult \
+                 --output-path ui-test-attachments \
+            || echo "Could not export attachments from TestResults.xcresult"
+
+      - name: Upload UI test results
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: ui-test-results
+          path: |
+            TestResults.xcresult
+            ui-test-attachments/
+          if-no-files-found: ignore
+          retention-days: 7
